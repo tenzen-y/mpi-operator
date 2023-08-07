@@ -26,7 +26,9 @@ function resolve_host() {
 }
 
 if [ "$K_MPI_JOB_ROLE" == "launcher" ]; then
-  resolve_host "$HOSTNAME"
+  if [ -n "$HOSTNAME" ]; then
+    resolve_host "$HOSTNAME"
+  fi
   cut -d ':' -f 1 /etc/mpi/hostfile | while read -r host
   do
     resolve_host "$host"
