@@ -2,13 +2,6 @@ name: build and publish mpi test docker image
 
 on:
   push:
-    branches:
-      - "master"
-    tags:
-      - "v*"
-  pull_request:
-    branches:
-      - "master"
 
 jobs:
   base:
@@ -19,12 +12,13 @@ jobs:
       platforms: linux/amd64,linux/arm64
       dockerfile: build/base/Dockerfile
       context: build/base
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+#    secrets:
+#      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+#      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
   mpi-implementation-base:
     needs: base
+    if: needs.base.result == 'success'
     name: Publish MPI Implementation Base Images
     uses: ./.github/workflows/build-and-publish-images.yaml
     with:
@@ -33,9 +27,9 @@ jobs:
       dockerfile: build/base/${{ matrix.dockerfile }}
       context: build/base
       load-artifact-name: base
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+#    secrets:
+#      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+#      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
     strategy:
       fail-fast: false
@@ -52,7 +46,6 @@ jobs:
             dockerfile: mpich.Dockerfile
 
   mpi-implementation-builder:
-    needs: mpi-implementation-base
     name: Publish MPI Implementation Builder Images
     uses: ./.github/workflows/build-and-publish-images.yaml
     with:
@@ -60,10 +53,9 @@ jobs:
       platforms: ${{ matrix.platforms }}
       dockerfile: build/base/${{ matrix.dockerfile }}
       context: build/base
-      load-artifact-name: ${{ matrix.load-artifact-name }}
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+#    secrets:
+#      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+#      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
     strategy:
       fail-fast: false
@@ -83,7 +75,12 @@ jobs:
             load-artifact-name: mich
 
   pi:
-    needs: mpi-implementation-builder
+    needs:
+    - mpi-implementation-builder
+    - mpi-implementation-base
+    if: |
+      needs.mpi-implementation-builder.result == 'success' &&
+      needs.mpi-implementation-base.result == 'success'
     name: Publish PI example Images
     uses: ./.github/workflows/build-and-publish-images.yaml
     with:
@@ -93,9 +90,9 @@ jobs:
       context: examples/v2beta1/pi
       suffix: ${{ matrix.suffix }}
       load-artifact-name: ${{ matrix.load-artifact-name }}
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+#    secrets:
+#      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+#      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
     strategy:
       fail-fast: false
@@ -112,8 +109,6 @@ jobs:
             suffix: -intel
             load-artifact-name: intel-builder
           - component-name: pi
-            # TODO: Need to verify if mpich works on ppc64le platform.
-            # REF: https://github.com/kubeflow/mpi-operator/issues/565
             platforms: linux/amd64,linux/arm64
             dockerfile: mpich.Dockerfile
             suffix: -mpich
