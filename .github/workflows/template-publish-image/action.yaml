@@ -26,10 +26,30 @@ inputs:
   load-artifact-name:
     required: false
     description: e.g, openmpi-builder
-
 runs:
   using: composite
   steps:
+    - name: Set up Docker
+      env:
+        DOCKER_CLI_EXPERIMENTAL: enabled
+      uses: crazy-max/ghaction-setup-docker@v1
+      with:
+        version: v24.0.5
+#      shell: bash
+#      run: |
+#        docker version
+#        for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
+
+    - name: Set Up contained image store
+      shell: bash
+      run: |
+        cat /etc/docker/daemon.json | jq '. | .+{"features": {"containerd-snapshotter": true}, "experimental": true}' | sudo tee /etc/docker/daemon.json
+        cat ~/.docker/config.json | jq '. | .+{"experimental": "enabled"}' | sudo tee ~/.docker/config.json
+        sudo systemctl restart docker
+
+        docker info -f '{{ .DriverStatus }}'
+        docker info
+
     - name: Setup QEMU
       uses: docker/setup-qemu-action@v2
       with:
@@ -42,9 +62,30 @@ runs:
 #      shell: bash
 #      run: |
 #        docker info -f '{{ .DriverStatus }}'
-#        cat /etc/docker/daemon.json | jq '. | .+{"features": {"containerd-snapshotter": true}}' | sudo tee /etc/docker/daemon.json
-#        sudo systemctl restart docker
+#        cat /etc/docker/daemon.json | \
+#          jq '. | .+{"features": {"containerd-snapshotter": true}, "storage-driver": "stargz", "experimental": true}' | sudo tee /etc/docker/daemon.json
+#        sudo mkdir -p /etc/containerd
+#        sudo tee /etc/containerd/config.toml <<EOF
+#        version = 2
+#
+#        [proxy_plugins]
+#        [proxy_plugins.stargz]
+#        type = "snapshot"
+#        address = "/run/containerd-stargz-grpc/containerd-stargz-grpc.sock"
+#        EOF
+#
+#        sudo apt-get install fuse
+#        modprobe fuse
+#        wget -qO stargz-snapshotter-v0.14.3-linux-amd64.tar.gz https://github.com/containerd/stargz-snapshotter/releases/download/v0.14.3/stargz-snapshotter-v0.14.3-linux-amd64.tar.gz
+#        tar -C /usr/local/bin -xvf stargz-snapshotter-v0.14.3-linux-amd64.tar.gz containerd-stargz-grpc ctr-remote
+#        sudo wget -O /etc/systemd/system/stargz-snapshotter.service https://raw.githubusercontent.com/containerd/stargz-snapshotter/main/script/config/etc/systemd/system/stargz-snapshotter.service
+#
+#        sudo systemctl enable --now stargz-snapshotter || (journalctl -xeu docker.service && docker info && exit 1)
+#        sudo systemctl restart containerd || (journalctl -xeu docker.service && docker info && exit 1)
+#        sudo systemctl restart docker || (journalctl -xeu docker.service && docker info && exit 1)
+#
 #        docker info -f '{{ .DriverStatus }}'
+#        docker info
 
     - name: Docker meta
       if : ${{ inputs.suffix == '' }}
@@ -89,13 +130,12 @@ runs:
         platforms: ${{ inputs.platforms }}
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile }}
-        push: ${{ github.event_name != 'pull_request' }}
+#        push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.DOCKER_METADATA_OUTPUT_TAGS }}
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=oci,dest=/tmp/${{ inputs.output-artifact-name }}.tar
         build-args:
           port=2222
-          BASE_LABEL=${{ env.DOCKER_METADATA_OUTPUT_TAGS }}
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v3
