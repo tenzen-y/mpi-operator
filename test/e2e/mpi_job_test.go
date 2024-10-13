@@ -286,6 +286,16 @@ var _ = ginkgo.Describe("MPIJob", func() {
 						"2",
 						"/home/mpiuser/pi",
 					},
+					Env: []corev1.EnvVar{
+						{
+							Name: "FI_PROVIDER",
+							Value: "tcp",
+						},
+						{
+							Name: "MPIR_CVAR_DEBUG_SUMMARY",
+							Value: "1",
+						},
+					},
 				},
 			}
 			mpiJob.Spec.MPIReplicaSpecs[kubeflow.MPIReplicaTypeWorker].Template.Spec.Containers = []corev1.Container{
@@ -305,6 +315,16 @@ var _ = ginkgo.Describe("MPIJob", func() {
 							},
 						},
 						InitialDelaySeconds: 3,
+					},
+					Env: []corev1.EnvVar{
+						{
+							Name: "FI_PROVIDER",
+							Value: "tcp",
+						},
+						{
+							Name: "MPIR_CVAR_DEBUG_SUMMARY",
+							Value: "1",
+						},
 					},
 				},
 			}
