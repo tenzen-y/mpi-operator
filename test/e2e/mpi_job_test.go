@@ -219,6 +219,12 @@ var _ = ginkgo.Describe("MPIJob", func() {
 						"2",
 						"/home/mpiuser/pi",
 					},
+					Env: []corev1.EnvVar{
+						{
+							Name:  "CCL_ZE_IPC_EXCHANGE",
+							Value: "sockets",
+						},
+					},
 				},
 			}
 			mpiJob.Spec.MPIReplicaSpecs[kubeflow.MPIReplicaTypeWorker].Template.Spec.Containers = []corev1.Container{
@@ -230,6 +236,12 @@ var _ = ginkgo.Describe("MPIJob", func() {
 					Args: []string{
 						"/usr/sbin/sshd",
 						"-De",
+					},
+					Env: []corev1.EnvVar{
+						{
+							Name:  "CCL_ZE_IPC_EXCHANGE",
+							Value: "sockets",
+						},
 					},
 					ReadinessProbe: &corev1.Probe{
 						ProbeHandler: corev1.ProbeHandler{
